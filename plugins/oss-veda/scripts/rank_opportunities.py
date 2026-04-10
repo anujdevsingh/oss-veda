@@ -1,10 +1,7 @@
 #!/usr/bin/env -S uv run --script --quiet
 # /// script
 # requires-python = ">=3.11"
-# dependencies = [
-#   "httpx>=0.27",
-#   "pydantic>=2.0",
-# ]
+# dependencies = []
 # ///
 """Rank opportunities by career-impact score."""
 

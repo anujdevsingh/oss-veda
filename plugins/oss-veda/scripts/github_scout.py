@@ -74,8 +74,18 @@ async def _request_with_backoff(
             resp = await client.get(url, headers=HEADERS, params=params)
             if resp.status_code in (403, 429):
                 if attempt < max_retries:
-                    # Check Retry-After header, fallback to exponential backoff
-                    retry_after = int(resp.headers.get("Retry-After", 0))
+                    # Check Retry-After header (can be seconds or HTTP-date), fallback to exponential backoff
+                    retry_header = resp.headers.get("Retry-After", "")
+                    try:
+                        retry_after = int(retry_header) if retry_header else 0
+                    except ValueError:
+                        # HTTP-date format — parse and compute delta
+                        from email.utils import parsedate_to_datetime
+                        try:
+                            retry_dt = parsedate_to_datetime(retry_header)
+                            retry_after = max(0, int((retry_dt - datetime.now(timezone.utc)).total_seconds()))
+                        except (ValueError, TypeError):
+                            retry_after = 0
                     wait = max(retry_after, 5 * (2 ** attempt))
                     print(f"  Rate limited, waiting {wait}s (attempt {attempt + 1})...", file=sys.stderr)
                     await asyncio.sleep(wait)
@@ -232,6 +242,8 @@ async def global_issue_search(client: httpx.AsyncClient, days: int) -> list[dict
                 parsed = urlparse(item["repository_url"])
                 path_parts = parsed.path.strip("/").split("/")
                 full_name = f"{path_parts[-2]}/{path_parts[-1]}" if len(path_parts) >= 2 else ""
+                if not full_name:
+                    continue
                 results.append({
                     "issue": Issue(
                         title=item["title"],

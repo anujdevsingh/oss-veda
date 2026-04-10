@@ -244,7 +244,7 @@ Edit the `skill_profile` section to match your skills. Proficiency values are 0.
 
 | Source | API | Auth | Rate Limit | What it finds |
 |--------|-----|------|------------|---------------|
-| **GitHub** | REST v3 Search | `GITHUB_TOKEN` (required) | 30 search/min, 5000 req/hr | Trending repos by topic, good-first-issues, help-wanted issues |
+| **GitHub** | REST v3 Search | `GITHUB_TOKEN` (recommended) | 30 search/min with token, 10/min without | Trending repos by topic, good-first-issues, help-wanted issues |
 | **Hacker News** | Algolia | None | 10,000/hr | Show HN posts with GitHub links, high-engagement AI/ML projects |
 | **Reddit** | Public JSON | User-Agent header | ~10/min | Top posts from r/MachineLearning, r/LocalLLaMA, r/LangChain with GitHub links |
 | **HuggingFace** | REST | None | Generous | Trending models and Spaces by trending score |
@@ -275,7 +275,7 @@ Edit the `skill_profile` section to match your skills. Proficiency values are 0.
 
 | Requirement | Why | Install |
 |-------------|-----|---------|
-| **uv** | Runs Python scripts with auto-installed dependencies | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| **uv** | Runs Python scripts with auto-installed dependencies | See [uv docs](https://docs.astral.sh/uv/getting-started/installation/) |
 | **Python 3.11+** | Required by all scout scripts | [python.org](https://python.org) |
 | **GITHUB_TOKEN** | GitHub Search API needs auth for adequate rate limits | [Create token](https://github.com/settings/tokens) with `public_repo` scope |
 | **Internet** | Fetches from 5 external APIs | -- |
@@ -342,7 +342,20 @@ Use this to track scout reliability and result trends over time.
 
 ## Version History
 
-### v1.1.0 (Current)
+### v1.1.1 (Current)
+
+- Fixed HuggingFace URLs (now correctly links to `huggingface.co/{id}`)
+- Added JSON decode error handling in HuggingFace and Reddit scouts
+- Fixed `Retry-After` header parsing to handle HTTP-date format
+- Added path traversal protection on cache file paths
+- Added defensive `.get()` access throughout report generator
+- Guarded against missing `objectID` in Hacker News results
+- Removed unused `httpx`/`pydantic` dependencies from scoring script
+- Fixed missing `encoding="utf-8"` on cache file reads
+- Updated scoring reference docs to match v1.1.0 algorithm
+- Fixed `/veda-deep` command to default topic to "ai" when no argument given
+
+### v1.1.0
 
 - Logarithmic star scoring (small fast-growing repos now compete with giants)
 - Exponential freshness decay with configurable half-life
@@ -369,4 +382,4 @@ Use this to track scout reliability and result trends over time.
 
 ## License
 
-MIT -- see [LICENSE](../../LICENSE)
+MIT -- see [LICENSE](LICENSE)

@@ -14,11 +14,11 @@ Topic: $ARGUMENTS (default: ai)
 Use the oss-veda skill with extended parameters:
 
 ```bash
+TOPIC="${ARGUMENTS:-ai}"
 ${CLAUDE_PLUGIN_ROOT}/scripts/run_scouts.py \
-    --topic "$ARGUMENTS" \
+    --topic "$TOPIC" \
     --days 14 \
-    --max-repos 30 \
-    --output /tmp/oss-veda-deep-raw.json
+    --max-repos 30
 ```
 
 Then proceed with ranking and report generation as normal.

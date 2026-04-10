@@ -44,12 +44,13 @@ async def run(query: str = "AI OR LLM") -> list[dict]:
                 resp.raise_for_status()
                 for hit in resp.json().get("hits", []):
                     github_url = extract_github_url(hit.get("url", ""))
-                    if github_url:
+                    object_id = hit.get("objectID")
+                    if github_url and object_id:
                         results.append({
                             "source": "hackernews",
                             "title": hit.get("title", ""),
                             "github_url": github_url,
-                            "hn_url": f"https://news.ycombinator.com/item?id={hit['objectID']}",
+                            "hn_url": f"https://news.ycombinator.com/item?id={object_id}",
                             "points": hit.get("points", 0),
                             "comments": hit.get("num_comments", 0),
                             "created_at": hit.get("created_at", ""),

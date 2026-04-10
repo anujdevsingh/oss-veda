@@ -27,18 +27,17 @@ async def run() -> list[dict]:
                 )
                 resp.raise_for_status()
                 for item in resp.json():
-                    # Map plural endpoint to singular URL path
-                    url_type = {"models": "model", "spaces": "space"}.get(endpoint, endpoint)
+                    # HuggingFace URLs use the ID directly (e.g. huggingface.co/meta-llama/Llama-2)
                     results.append({
                         "source": f"huggingface_{endpoint}",
                         "id": item.get("id", ""),
-                        "url": f"https://huggingface.co/{url_type}/{item.get('id', '')}",
+                        "url": f"https://huggingface.co/{item.get('id', '')}",
                         "downloads": item.get("downloads", 0),
                         "likes": item.get("likes", 0),
                         "tags": item.get("tags", [])[:10],
                         "created_at": item.get("createdAt", ""),
                     })
-            except httpx.HTTPError as e:
+            except (httpx.HTTPError, json.JSONDecodeError) as e:
                 print(f"Warning: HuggingFace {endpoint} failed: {e}", file=sys.stderr)
     return results
 

@@ -11,6 +11,7 @@
 import asyncio
 import json
 import os
+import re
 import sys
 import argparse
 import tempfile
@@ -34,7 +35,9 @@ SCOUT_TIMEOUT = 180  # 3 minutes max per scout
 
 def get_cache_path(topic: str, days: int) -> Path:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    return CACHE_DIR / f"scouts_{topic}_{days}d.json"
+    # Sanitize topic to prevent path traversal
+    safe_topic = re.sub(r"[^a-zA-Z0-9_-]", "_", topic)
+    return CACHE_DIR / f"scouts_{safe_topic}_{days}d.json"
 
 
 def is_cache_fresh(path: Path) -> bool:
@@ -113,7 +116,7 @@ def main():
         import shutil
         shutil.copy(str(cache_path), args.output)
         try:
-            with open(args.output) as f:
+            with open(args.output, encoding="utf-8") as f:
                 data = json.load(f)
             print(f"Cached results loaded. {data['_metadata']['scouts_succeeded']}/5 scouts.", file=sys.stderr)
         except (json.JSONDecodeError, KeyError):

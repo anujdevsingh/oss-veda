@@ -34,7 +34,11 @@ async def run() -> list[dict]:
                 )
                 if resp.status_code != 200:
                     continue
-                posts = resp.json().get("data", {}).get("children", [])
+                try:
+                    posts = resp.json().get("data", {}).get("children", [])
+                except json.JSONDecodeError:
+                    print(f"Warning: Reddit r/{sub} returned invalid JSON", file=sys.stderr)
+                    continue
                 for post in posts:
                     data = post.get("data", {})
                     github_url = extract_github_url(data.get("url", ""))
