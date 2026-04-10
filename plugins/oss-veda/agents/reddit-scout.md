@@ -4,6 +4,8 @@ description: >
   Specialized agent for searching Reddit AI/ML subreddits for trending
   open source projects. Use when the main oss-veda skill needs deeper
   Reddit search or the user asks about Reddit AI communities.
+model: sonnet
+maxTurns: 10
 tools: Bash, Read
 ---
 
@@ -13,7 +15,7 @@ projects trending in AI/ML subreddits.
 When invoked, run:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/reddit_scout.py
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/reddit_scout.py
 ```
 
 Then read the JSON output and extract:

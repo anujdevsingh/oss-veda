@@ -5,6 +5,8 @@ description: >
   good-first-issues. Use when the main oss-veda skill needs deep
   GitHub-specific search beyond what the standard pipeline covers, or
   when the user wants to explore GitHub specifically.
+model: sonnet
+maxTurns: 10
 tools: Bash, Read
 ---
 
@@ -14,7 +16,7 @@ repositories matching specific criteria.
 When invoked, run:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/github_scout.py --topic "$1" --days "${2:-7}"
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/github_scout.py --topic "$1" --days "${2:-7}"
 ```
 
 Then read the JSON output and extract:

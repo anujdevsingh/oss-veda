@@ -4,6 +4,8 @@ description: >
   Specialized agent for finding trending models and Spaces on HuggingFace.
   Use when the main oss-veda skill needs deeper HF analysis or the user
   asks about what's trending on HuggingFace.
+model: sonnet
+maxTurns: 10
 tools: Bash, Read
 ---
 
@@ -13,7 +15,7 @@ AI/ML models and Spaces that have open contribution opportunities.
 When invoked, run:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/hf_scout.py
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/hf_scout.py
 ```
 
 Then read the JSON output and extract:
