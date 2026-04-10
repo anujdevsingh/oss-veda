@@ -1,0 +1,14 @@
+{
+  "name": "oss-veda",
+  "version": "1.0.0",
+  "description": "Wisdom for your next open source contribution. oss-veda runs 5 parallel scouts across GitHub, Hacker News, Reddit, HuggingFace, and Papers with Code, then ranks AI/ML issues by career impact \u2014 combining repo momentum, maintainer visibility, and your skill fit. Built on the Agent Skills standard with native subagents.",
+  "author": {
+    "name": "Anuj Dev Singh",
+    "email": "anuj@codewithanuj.com"
+  },
+  "homepage": "https://github.com/anujdevsingh/anuj-ai-tools/tree/main/plugins/oss-veda",
+  "repository": "https://github.com/anujdevsingh/anuj-ai-tools",
+  "license": "MIT",
+  "keywords": ["open-source", "github", "trending", "career", "ai", "ml", "veda", "scout"],
+  "category": "productivity"
+}

@@ -1,0 +1,49 @@
+{
+  "skill_profile": {
+    "languages": {
+      "python": 1.0,
+      "typescript": 0.7,
+      "javascript": 0.5
+    },
+    "frameworks": {
+      "pytorch": 0.9,
+      "crewai": 0.95,
+      "langgraph": 0.85,
+      "langchain": 0.8,
+      "nextjs": 0.7,
+      "fastapi": 0.7,
+      "huggingface": 0.85,
+      "qlora": 0.9,
+      "rag": 0.9,
+      "gemma": 0.9,
+      "gcp": 0.7,
+      "vllm": 0.5,
+      "transformers": 0.85,
+      "peft": 0.9,
+      "agents": 0.9
+    }
+  },
+  "scouts": {
+    "github_ai_topics": [
+      "llm", "langchain", "langgraph", "rag",
+      "agents", "ai-agents", "pytorch", "transformers",
+      "huggingface", "fine-tuning", "vllm", "mlops"
+    ],
+    "reddit_subreddits": [
+      "MachineLearning", "LocalLLaMA", "LangChain"
+    ],
+    "hf_endpoints": ["models", "spaces"],
+    "hn_queries": ["AI OR LLM", "open source AI", "machine learning tool"],
+    "pwc_queries": ["large language model", "AI agents", "fine-tuning"]
+  },
+  "scoring": {
+    "freshness_half_life_days": 30,
+    "repo_weight": 0.40,
+    "issue_weight": 0.35,
+    "fit_weight": 0.25,
+    "top_n": 20,
+    "long_shot_n": 5
+  },
+  "cache_ttl_seconds": 21600,
+  "scout_timeout_seconds": 180
+}

@@ -1,0 +1,25 @@
+{
+  "name": "anuj-ai-tools",
+  "owner": {
+    "name": "Anuj Dev Singh",
+    "email": "anuj@codewithanuj.com"
+  },
+  "metadata": {
+    "description": "AI/ML developer tools by Anuj \u2014 built on the Claude Code Agent Skills standard",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "oss-veda",
+      "source": "./plugins/oss-veda",
+      "description": "Career-aware open source contribution scout for AI/ML developers. Runs 5 parallel scouts (GitHub, HN, Reddit, HuggingFace, Papers with Code) and ranks issues by repo momentum, maintainer visibility, and your personal skill fit.",
+      "category": "productivity",
+      "tags": ["open-source", "ai", "ml", "career", "github", "trending"],
+      "version": "1.0.0",
+      "author": { "name": "Anuj Dev Singh" },
+      "homepage": "https://github.com/anujdevsingh/anuj-ai-tools",
+      "license": "MIT",
+      "keywords": ["oss", "open-source", "contributions", "ai", "ml", "github", "trending", "career", "veda"]
+    }
+  ]
+}
