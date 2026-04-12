@@ -2,6 +2,21 @@
 
 All notable changes to oss-veda are documented in this file.
 
+## [1.2.0] - 2026-04-12
+
+### Added
+- **veda-guard agent**: automatic pre-flight, security, and post-mortem checks
+  - 7 pre-flight checks: uv installed, Python version, temp dir writable, network reachable, GITHUB_TOKEN, scripts exist, config valid
+  - 4 security checks: cache size limit, unexpected file detection, SHA256 script checksums, history file integrity
+  - 3 post-mortem checks: scout success rate, report file validation, token leak detection
+- `checksums.json` for script tamper detection
+- `--skip-guard` flag for `/veda` and `/veda-deep`
+- Dev helper `_dev_update_checksums.py` for release maintenance
+
+### Changed
+- GITHUB_TOKEN check moved from standalone Step 0 into guard pre-flight (check #5)
+- Pipeline now has 6 steps: guard → scouts → rank → report → strategy → post-mortem
+
 ## [1.1.1] - 2026-04-10
 
 ### Fixed

@@ -100,6 +100,39 @@ This triggers the `veda-write` skill to draft the PR.
 
 ---
 
+## Guard Agent
+
+Every `/veda` and `/veda-deep` run starts with an automatic guard check (~3 seconds). The guard verifies your environment is healthy and safe before running the pipeline.
+
+### What the guard checks
+
+| Category | Checks | Severity |
+|----------|--------|----------|
+| **Pre-flight** | uv installed, Python >= 3.11, temp dir writable, network reachable, GITHUB_TOKEN set, scripts exist, config.json valid | Hard/Soft |
+| **Security** | Cache dir < 100 MB, no unexpected files, script SHA256 checksums match, history file integrity | Hard/Soft |
+| **Post-mortem** | Scout success rate, report file generated, no leaked tokens in output | Hard/Soft |
+
+### Severity levels
+
+- **Hard fail**: Pipeline cannot run. Guard blocks and shows fix instructions.
+- **Soft warning**: Pipeline can still produce useful results. Guard warns and continues.
+- **Pass**: Silent. No extra output.
+
+### Skipping the guard
+
+If the guard blocks you incorrectly (e.g. corporate proxy blocks the network check):
+
+```bash
+/veda --skip-guard
+/veda-deep --skip-guard
+```
+
+### Guard self-protection
+
+If the guard itself crashes, the pipeline runs anyway. The guard never blocks a working pipeline due to its own bugs.
+
+---
+
 ## Architecture
 
 ```
@@ -280,17 +313,64 @@ Edit the `skill_profile` section to match your skills. Proficiency values are 0.
 | **GITHUB_TOKEN** | GitHub Search API needs auth for adequate rate limits | [Create token](https://github.com/settings/tokens) with `public_repo` scope |
 | **Internet** | Fetches from 5 external APIs | -- |
 
-### Setting GITHUB_TOKEN
+### Setting GITHUB_TOKEN (one-time setup)
 
-**macOS/Linux:**
+The plugin works without a token but is rate-limited to **10 searches/minute**. Adding a token raises this to **30 searches/minute** and gives you cleaner runs without backoff delays.
+
+#### Step 1 — Create a GitHub Personal Access Token
+
+1. Go to **https://github.com/settings/tokens** (or: GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic))
+2. Click **"Generate new token"** → **"Generate new token (classic)"**
+3. **Note**: `oss-veda plugin`
+4. **Expiration**: 90 days (or longer if you prefer)
+5. **Scopes**: Leave **all checkboxes unchecked**. The plugin only reads public data — it does not need any scopes. An unscoped token still gets the higher rate limit.
+6. Click **"Generate token"** at the bottom
+7. **Copy the token immediately** (starts with `ghp_...`) — GitHub only shows it once
+
+#### Step 2 — Save it to your shell environment
+
+**macOS / Linux (zsh):**
 ```bash
-export GITHUB_TOKEN="ghp_your_token_here"
+echo 'export GITHUB_TOKEN="ghp_your_token_here"' >> ~/.zshrc
+source ~/.zshrc
 ```
 
-**Windows (permanent):**
-Settings > System > About > Advanced system settings > Environment Variables > New
+**macOS / Linux (bash):**
+```bash
+echo 'export GITHUB_TOKEN="ghp_your_token_here"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Windows (PowerShell — permanent, user-level):**
+```powershell
+[Environment]::SetEnvironmentVariable("GITHUB_TOKEN", "ghp_your_token_here", "User")
+```
+Then **close and reopen your terminal** so the new variable is picked up.
+
+**Windows (GUI alternative):**
+Settings → System → About → Advanced system settings → Environment Variables → New
 - Name: `GITHUB_TOKEN`
 - Value: your token
+
+#### Step 3 — Verify
+
+Open a new terminal and run:
+
+```bash
+# macOS/Linux
+echo $GITHUB_TOKEN
+
+# Windows PowerShell
+echo $env:GITHUB_TOKEN
+```
+
+You should see your token printed. Now run `/veda` in Claude Code — the rate-limit warning should be gone.
+
+#### Security notes
+
+- **Never paste your token into Claude Code chat.** The plugin reads it from your shell environment automatically — it never needs to appear in the conversation.
+- **No scopes needed.** An unscoped classic token can only read public data, so even if it leaks it cannot do anything destructive.
+- **The plugin never logs, prints, or transmits your token** — it only sends it as the `Authorization` header to `api.github.com`.
 
 ---
 
