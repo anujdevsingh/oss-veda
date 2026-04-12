@@ -12,7 +12,7 @@ Run an expanded oss-veda scan with:
 Topic: $ARGUMENTS (default: ai)
 
 **You MUST execute these commands yourself with the Bash tool. Do NOT
-ask the user to run them. Run all 4 steps in sequence and then
+ask the user to run them. Run all steps in sequence and then
 summarize the report.**
 
 Step 0 — Guard pre-flight. Run with the Bash tool:
