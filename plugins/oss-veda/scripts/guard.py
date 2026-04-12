@@ -353,7 +353,9 @@ def check_script_checksums() -> dict:
         if not full_path.exists():
             not_found.append(rel_path)
             continue
-        actual_hash = hashlib.sha256(full_path.read_bytes()).hexdigest()
+        # Normalize line endings (CRLF → LF) before hashing for cross-platform consistency
+        content = full_path.read_bytes().replace(b"\r\n", b"\n")
+        actual_hash = hashlib.sha256(content).hexdigest()
         if actual_hash != expected_hash:
             mismatches.append(rel_path)
 

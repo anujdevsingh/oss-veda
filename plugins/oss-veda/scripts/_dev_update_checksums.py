@@ -19,7 +19,9 @@ files = {}
 for py_file in sorted(SCRIPTS_DIR.glob("*.py")):
     if py_file.name.startswith("_"):
         continue
-    sha256 = hashlib.sha256(py_file.read_bytes()).hexdigest()
+    # Normalize line endings (CRLF → LF) before hashing for cross-platform consistency
+    content = py_file.read_bytes().replace(b"\r\n", b"\n")
+    sha256 = hashlib.sha256(content).hexdigest()
     files[f"scripts/{py_file.name}"] = sha256
 
 checksums = {
