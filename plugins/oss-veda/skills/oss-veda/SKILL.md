@@ -18,13 +18,67 @@ You are an AI/ML open source contribution strategist. When invoked, run
 the parallel scouting pipeline to find the highest-impact opportunities
 for the user this week.
 
+**CRITICAL EXECUTION RULES**:
+- You MUST execute every bash command below yourself using the Bash tool.
+- Do NOT print commands and ask the user to run them.
+- Do NOT wait for the user to confirm before running each step.
+- Do NOT show the user "here is the command, please run it" — just run it.
+- The user wants results, not instructions. Run all steps in sequence
+  using the Bash tool, then summarize the report.
+
 ## Pipeline
+
+### Step 0 -- Guard pre-flight checks (always run first)
+
+Before running the scouts, execute the guard to verify the environment
+is healthy. Run this with the Bash tool:
+
+```bash
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/guard.py --mode preflight
+```
+
+Parse the JSON output and act on the `status` field:
+
+**If `"ok"`**: Print a one-line summary and proceed silently to Step 1:
+> Guard: all checks passed
+
+**If `"warnings"`**: Print the warnings, then proceed to Step 1:
+> Guard warnings:
+>   - [details of each warned check]
+> Proceeding with pipeline.
+
+If one of the warnings is `github_token` (GITHUB_TOKEN not set), show
+the user this additional message ONCE:
+
+> GITHUB_TOKEN is not set. Pipeline will run but is rate-limited (10/min
+> instead of 30/min). See README "Setting GITHUB_TOKEN" for one-time
+> setup instructions.
+
+**If `"hard_fail"`**: Show the failures with fix instructions and STOP.
+Do NOT proceed to Step 1. For each failed check, show the `fix_hint`
+from the JSON output. Example:
+
+> Guard: hard failure -- cannot run pipeline
+>
+> Problem: uv is not installed or not on PATH.
+> Fix: [fix_hint from JSON]
+>
+> Fix the issue above and re-run /veda.
+
+**If guard.py itself crashes** (non-zero exit with no valid JSON, or
+the command fails to run): Print "Guard unavailable, proceeding anyway"
+and continue to Step 1. The guard must never block a working pipeline.
+
+**If the user passed `--skip-guard`** in ARGUMENTS: Skip this step
+entirely and go straight to Step 1.
 
 ### Step 1 -- Run all 5 scouts in parallel
 
 The orchestrator script uses uv for self-installing dependencies and
 asyncio.gather() for true parallel execution. No setup needed.
 Scripts auto-detect the system temp directory (works on macOS, Linux, Windows).
+
+Execute this with the Bash tool now (do not show it to the user, just run it):
 
 ```bash
 TOPIC="${ARGUMENTS:-ai}"
@@ -38,17 +92,21 @@ First run adds ~2 seconds for uv to cache dependencies.
 
 ### Step 2 -- Score and rank opportunities
 
+After Step 1 completes, execute this with the Bash tool (do not ask the user):
+
 ```bash
 uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/rank_opportunities.py
 ```
 
 ### Step 3 -- Generate the markdown report
 
+After Step 2 completes, execute this with the Bash tool (do not ask the user):
+
 ```bash
 uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/generate_report.py
 ```
 
-The report is printed to stdout. Read the output directly.
+The report is printed to stdout. Read the output directly from the Bash tool result.
 
 ### Step 4 -- Add personalized strategy
 
@@ -59,6 +117,32 @@ career impact for the user RIGHT NOW based on:
 - What's trending in AI hiring
 - Their existing skills (see references/skill-profile.md)
 - Where their portfolio has gaps
+
+### Step 5 -- Guard post-mortem (run after report is generated)
+
+After Step 4, run the guard in post-mortem mode to check for issues:
+
+```bash
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/guard.py --mode postmortem
+```
+
+Parse the JSON output:
+
+**If `scouts_succeeded` < `scouts_total`**: Append a post-mortem section
+to your response:
+
+> Post-mortem:
+>   - [scout name]: [diagnosis] ([user_action])
+> Pipeline succeeded with N/5 scouts. Report is still useful.
+
+**If `leaked_tokens_in_report` is true**: Show a CRITICAL warning telling
+the user NOT to share the report and to report the issue.
+
+**If all scouts succeeded and no leaks**: Say nothing. No post-mortem
+needed when everything worked.
+
+**If guard.py crashes in post-mortem mode**: Ignore it silently. The
+report was already generated — don't scare the user over a guard bug.
 
 ## What this skill does NOT do
 
