@@ -1,0 +1,15 @@
+{
+  "version": "1.1.1",
+  "generated_at": "2026-04-12T14:55:18.514522+00:00",
+  "algorithm": "sha256",
+  "files": {
+    "scripts/generate_report.py": "cfdec9a0fe993ef527cbbd9c375bb71604c95a0b45d3e986971719a22e9dad6d",
+    "scripts/github_scout.py": "5572145f361300b854fb23d65f223fb3e903b938f7727d8f4c39ab96ae55eeeb",
+    "scripts/hf_scout.py": "ada5b1b32276b584c06d6a0ea1d555726cba17617b59404c7cbbcb851a0c6ae3",
+    "scripts/hn_scout.py": "8f5e13775b988137148b8a85cf883b7a6f631dfc4c8f41ec851f7fca1ad6d32d",
+    "scripts/pwc_scout.py": "325b1b8f52bb4a041ec813c31e6d5adbc3f35823d198b0d24e409734d541bbde",
+    "scripts/rank_opportunities.py": "8fecc08e1aed791a9abd68c9f602aacc77e5bed1e4502080c98b9d58a10729d4",
+    "scripts/reddit_scout.py": "e685662adbe1e26a10eaa9cbd985f1001cd7b289745334cb6c1a4b8c681d2bb0",
+    "scripts/run_scouts.py": "c2aa7cf28ed0aaf7dfbb2f60312fd728f3b067b28f191c153d3869a1879d2514"
+  }
+}
