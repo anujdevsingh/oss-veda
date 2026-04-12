@@ -2,7 +2,7 @@
 
 **Wisdom for your next open source contribution.**
 
-A Claude Code plugin that scouts trending AI/ML repositories across 5 data sources in parallel, then ranks contribution opportunities by career impact -- combining repo momentum, issue quality, and your personal skill fit.
+A Claude Code plugin that scouts trending AI/ML repositories across 5 data sources in parallel, then ranks contribution opportunities by career impact -- combining repo momentum, issue quality, and your personal skill fit. A guard agent verifies your environment and secures the pipeline end-to-end.
 
 ---
 
@@ -66,6 +66,9 @@ This triggers the `veda-write` skill to draft the PR.
 ```
                          /veda
                            |
+                       guard.py
+                     (pre-flight)
+                           |
                     run_scouts.py
                     (orchestrator)
                            |
@@ -86,9 +89,14 @@ This triggers the `veda-write` skill to draft the PR.
                   generate_report.py
                            |
                  Markdown report + strategic pick
+                           |
+                       guard.py
+                    (post-mortem)
 ```
 
 ### Pipeline steps
+
+0. **Guard pre-flight** -- Verifies environment health: uv installed, Python >= 3.11, network reachable, GITHUB_TOKEN set, script checksums intact, config valid. Hard failures block the pipeline; soft warnings continue.
 
 1. **Scout** (parallel) -- 5 async scouts fetch trending repos, posts, models, and papers from GitHub, Hacker News, Reddit, HuggingFace, and Papers with Code simultaneously using `asyncio.gather()`.
 
@@ -97,6 +105,8 @@ This triggers the `veda-write` skill to draft the PR.
 3. **Report** -- Top 20 opportunities are formatted into a markdown report with executive summary, ranked table, and long-shot picks.
 
 4. **Strategy** -- Claude adds a personalized "This Week's Strategic Pick" based on your skill profile and current AI hiring trends.
+
+5. **Guard post-mortem** -- Checks scout success rates, verifies report was generated, scans output for leaked tokens. Appends diagnosis if any scouts failed.
 
 ---
 
@@ -156,6 +166,7 @@ oss-veda/
 |   |-- reddit-scout.md               # Reddit AI subreddits
 |   |-- hf-scout.md                   # HuggingFace trending models/spaces
 |   |-- pwc-scout.md                  # Papers with Code linked repos
+|   |-- veda-guard.md                 # Guard agent (pre-flight + post-mortem)
 |-- commands/
 |   |-- veda.md                        # /veda slash command
 |   |-- veda-deep.md                   # /veda-deep slash command
@@ -168,7 +179,10 @@ oss-veda/
 |   |-- pwc_scout.py                   # Papers with Code API client
 |   |-- rank_opportunities.py          # Career impact scoring engine
 |   |-- generate_report.py             # Markdown report generator
+|   |-- guard.py                       # Environment & security guard
+|   |-- _dev_update_checksums.py       # Dev-only: regenerate checksums.json
 |-- config.json                        # Centralized configuration
+|-- checksums.json                     # SHA256 hashes for script integrity
 |-- README.md
 ```
 
@@ -176,7 +190,9 @@ oss-veda/
 
 - **uv single-file scripts** -- Each Python script uses PEP 723 inline metadata (`# /// script`). Dependencies are declared per-file and auto-installed by `uv` on first run. No global `requirements.txt`, no shared virtual environment.
 
-- **Native Claude subagents** -- The 5 scout agents are markdown files in `agents/`. They can be invoked independently by Claude for targeted searches beyond the standard pipeline.
+- **Native Claude subagents** -- 6 agents (5 scouts + 1 guard) are markdown files in `agents/`. Scout agents can be invoked independently by Claude for targeted searches beyond the standard pipeline.
+
+- **Guard agent with checksum verification** -- `guard.py` runs 14 checks across pre-flight, security, and post-mortem phases. Script integrity is verified via SHA256 checksums (with CRLF normalization for cross-platform consistency). Tiered severity (hard fail / soft warning / pass) ensures the pipeline only blocks on real problems.
 
 - **Graceful degradation** -- If any scout fails (rate limit, network error, API down), the others continue. `asyncio.gather(return_exceptions=True)` ensures one failure never kills the pipeline.
 
@@ -299,8 +315,8 @@ Edit the `skill_profile` section to match your skills. Proficiency values are 0.
 
 | Command | Description |
 |---------|-------------|
-| `/veda [topic]` | Quick scan: 7-day lookback, top 20 repos |
-| `/veda-deep [topic]` | Deep scan: 14-day lookback, top 30 repos, full maintainer analysis |
+| `/veda [topic] [--skip-guard]` | Quick scan: 7-day lookback, top 20 repos |
+| `/veda-deep [topic] [--skip-guard]` | Deep scan: 14-day lookback, top 30 repos, full maintainer analysis |
 
 ---
 
@@ -422,7 +438,15 @@ Use this to track scout reliability and result trends over time.
 
 ## Version History
 
-### v1.1.1 (Current)
+### v1.2.0 (Current)
+
+- **Guard agent** -- New `guard.py` with 14 environment, security, and post-mortem checks. Runs automatically at pipeline start (pre-flight) and end (post-mortem). Tiered severity: hard fail blocks, soft warning continues, pass is silent.
+- **Script integrity verification** -- SHA256 checksums for all scripts (`checksums.json`). Guard detects tampered or corrupted scripts before execution. CRLF-normalized hashing for cross-platform consistency.
+- **`--skip-guard` escape hatch** -- Bypass guard checks for edge cases (e.g. corporate proxies blocking network check).
+- **Dev helper** -- `_dev_update_checksums.py` regenerates checksums after editing scripts.
+- **Guard self-protection** -- If guard.py itself crashes, the pipeline runs anyway.
+
+### v1.1.1
 
 - Fixed HuggingFace URLs (now correctly links to `huggingface.co/{id}`)
 - Added JSON decode error handling in HuggingFace and Reddit scouts
@@ -456,7 +480,7 @@ Use this to track scout reliability and result trends over time.
 - Initial release
 - 5 parallel scouts (GitHub, HN, Reddit, HuggingFace, Papers with Code)
 - Career impact scoring
-- 3 skills, 5 agents, 2 commands
+- 3 skills, 5 scout agents, 2 commands
 
 ---
 
