@@ -37,6 +37,8 @@ SKILL_PROFILE = CONFIG.get("skill_profile", {
     },
 })
 
+EXPERIENCE_LEVEL = "mid_level"
+
 SCORING = CONFIG.get("scoring", {
     "freshness_half_life_days": 30,
     "repo_weight": 0.40,
@@ -202,7 +204,15 @@ def score_fit(repo: dict) -> float:
     else:
         framework_score = 25  # no framework match
 
-    return 0.30 * lang_score + 0.40 * framework_score + 0.30 * 70
+    experience_scores = {
+        "student": 50,
+        "early_career": 65,
+        "mid_level": 80,
+        "senior": 90,
+    }
+    exp_score = experience_scores.get(EXPERIENCE_LEVEL, 80)
+
+    return 0.30 * lang_score + 0.40 * framework_score + 0.30 * exp_score
 
 
 def build_social_map(data: dict) -> dict:
@@ -238,12 +248,29 @@ def build_social_map(data: dict) -> dict:
 
 
 def main():
+    global SKILL_PROFILE, EXPERIENCE_LEVEL
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default=os.path.join(tempfile.gettempdir(), "oss-veda-raw.json"))
     parser.add_argument("--output", default=os.path.join(tempfile.gettempdir(), "oss-veda-ranked.json"))
+    parser.add_argument("--profile", default=None, help="Path to user profile JSON")
     args = parser.parse_args()
 
-    with open(args.input) as f:
+    if args.profile:
+        try:
+            with open(args.profile, encoding="utf-8") as f:
+                profile = json.load(f)
+            if "languages" in profile or "frameworks" in profile:
+                SKILL_PROFILE = {
+                    "languages": profile.get("languages", SKILL_PROFILE.get("languages", {})),
+                    "frameworks": profile.get("frameworks", SKILL_PROFILE.get("frameworks", {})),
+                }
+            if "experience_level" in profile:
+                EXPERIENCE_LEVEL = profile["experience_level"]
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"Warning: could not load profile '{args.profile}': {e}", file=sys.stderr)
+
+    with open(args.input, encoding="utf-8") as f:
         data = json.load(f)
 
     social_map = build_social_map(data)
