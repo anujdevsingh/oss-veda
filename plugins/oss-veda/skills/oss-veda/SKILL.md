@@ -28,7 +28,43 @@ for the user this week.
 
 ## Pipeline
 
-### Step 0 -- Guard pre-flight checks (always run first)
+### Step -1 -- Profile check (always run first)
+
+Before anything else, check if the user has a saved profile.
+Run this with the Bash tool:
+
+```bash
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/profile_manager.py --mode check
+```
+
+Parse the JSON output:
+
+**If `"exists"` is `false`**: The user has never run oss-veda before.
+Invoke the `veda-profiler` agent to conduct the 5-question interview.
+After the profiler finishes, continue to Step 0.
+
+**If `"exists"` is `true`**: Show a one-line profile summary:
+> Profile: [top 3 languages], [top 3 frameworks] | [experience_level] | Focus: [focus_areas]
+
+Then ask:
+> Same focus today, or different?
+
+- If the user says **"same"** (or similar): Run with the Bash tool:
+  ```bash
+  uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/profile_manager.py --mode merge
+  ```
+
+- If the user says something different (e.g., "show me Rust stuff" or
+  "focus on web dev today"): Build an override JSON from their request
+  and run:
+  ```bash
+  uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/profile_manager.py --mode merge --data '{"focus_areas": ["rust"]}'
+  ```
+  Include any language/framework overrides they mention in the JSON.
+
+After merge completes, continue to Step 0.
+
+### Step 0 -- Guard pre-flight checks
 
 Before running the scouts, execute the guard to verify the environment
 is healthy. Run this with the Bash tool:
@@ -82,9 +118,11 @@ Execute this with the Bash tool now (do not show it to the user, just run it):
 
 ```bash
 TOPIC="${ARGUMENTS:-ai}"
+SESSION_PROFILE="$(python3 -c "import tempfile; print(tempfile.gettempdir())")/oss-veda-cache/user-profile-session.json"
 uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/run_scouts.py \
     --topic "$TOPIC" \
-    --days 7
+    --days 7 \
+    --profile "$SESSION_PROFILE"
 ```
 
 Expected runtime: ~10-12 seconds for all 5 sources.
@@ -95,7 +133,9 @@ First run adds ~2 seconds for uv to cache dependencies.
 After Step 1 completes, execute this with the Bash tool (do not ask the user):
 
 ```bash
-uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/rank_opportunities.py
+SESSION_PROFILE="$(python3 -c "import tempfile; print(tempfile.gettempdir())")/oss-veda-cache/user-profile-session.json"
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/rank_opportunities.py \
+    --profile "$SESSION_PROFILE"
 ```
 
 ### Step 3 -- Generate the markdown report
@@ -143,6 +183,17 @@ needed when everything worked.
 
 **If guard.py crashes in post-mortem mode**: Ignore it silently. The
 report was already generated — don't scare the user over a guard bug.
+
+### Step 6 -- Cleanup
+
+After the report and post-mortem are done, clean up the session profile:
+
+```bash
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/profile_manager.py --mode cleanup
+```
+
+This removes the temporary session override file. The saved profile
+is not affected.
 
 ## What this skill does NOT do
 
