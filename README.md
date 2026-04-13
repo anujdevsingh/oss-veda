@@ -24,6 +24,9 @@ A Claude Code plugin that scouts trending open source repositories across 5 data
 
 ## Install
 
+#direct  run local 
+claude --plugin-dir E:\projects\oss-veda\plugins\oss-veda
+
 ```bash
 # Add the marketplace
 /plugin marketplace add anujdevsingh/anuj-ai-tools
@@ -361,6 +364,27 @@ Edit the `skill_profile` section to match your skills. Proficiency values are 0.
 | **Python 3.11+** | Required by all scout scripts | [python.org](https://python.org) |
 | **GITHUB_TOKEN** | GitHub Search API needs auth for adequate rate limits | [Create token](https://github.com/settings/tokens) with `public_repo` scope |
 | **Internet** | Fetches from 5 external APIs | -- |
+
+### Smooth run setup (recommended)
+
+By default, Claude Code asks permission before each command the plugin runs. To allow oss-veda's scripts to run without interruption, add this to your project's `.claude/settings.json`:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run --script *)",
+      "Bash(uv run *)",
+      "Bash(python3 -c *)",
+      "Bash(python -c *)"
+    ]
+  }
+}
+```
+
+If you cloned this repo, this file is already included. If you installed via the marketplace, create `.claude/settings.json` in your project root with the above content.
+
+Without this, Claude will ask "Do you want to run this?" before each of the ~8 pipeline commands, which works but is tedious.
 
 ### Setting GITHUB_TOKEN (one-time setup)
 
