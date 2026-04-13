@@ -105,15 +105,17 @@ async def _request_with_backoff(
 
 
 async def search_repos(
-    client: httpx.AsyncClient, topic: str, days: int, min_stars: int = 50
+    client: httpx.AsyncClient, topic: str, days: int, min_stars: int = 50,
+    focus_areas: list[str] | None = None,
 ) -> list[dict]:
     """Search GitHub for trending AI/ML repos across focused subtopics."""
     since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
     results = []
 
-    # Build query list: user topic + focused AI/ML subtopics
+    # Build query list: user topic + focused subtopics (profile-aware)
+    subtopics = focus_areas if focus_areas is not None else AI_ML_TOPICS
     queries = [topic]
-    for subtopic in AI_ML_TOPICS:
+    for subtopic in subtopics:
         if subtopic != topic:
             queries.append(subtopic)
 
@@ -215,18 +217,31 @@ async def fetch_issues(
     return issues
 
 
-async def global_issue_search(client: httpx.AsyncClient, days: int) -> list[dict]:
+async def global_issue_search(
+    client: httpx.AsyncClient, days: int,
+    user_languages: list[str] | None = None,
+) -> list[dict]:
     """Search GitHub globally for good-first-issues in AI/ML repos."""
     since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
     results = []
     seen_urls = set()
 
-    for query in [
-        f'label:"good first issue" language:python topic:llm state:open created:>{since}',
-        f'label:"good first issue" language:python topic:machine-learning state:open created:>{since}',
-        f'label:"help wanted" language:python topic:ai state:open created:>{since}',
-        f'label:"good first issue" language:typescript topic:ai state:open created:>{since}',
-    ]:
+    if user_languages is not None:
+        # Build language-specific queries from user's languages (cap at 4)
+        langs = user_languages[:4]
+        queries = [
+            f'label:"good first issue" language:{lang} topic:ai state:open created:>{since}'
+            for lang in langs
+        ]
+    else:
+        queries = [
+            f'label:"good first issue" language:python topic:llm state:open created:>{since}',
+            f'label:"good first issue" language:python topic:machine-learning state:open created:>{since}',
+            f'label:"help wanted" language:python topic:ai state:open created:>{since}',
+            f'label:"good first issue" language:typescript topic:ai state:open created:>{since}',
+        ]
+
+    for query in queries:
         resp = await _request_with_backoff(
             client,
             "https://api.github.com/search/issues",
@@ -270,14 +285,18 @@ async def enrich_repo(client: httpx.AsyncClient, api_url: str) -> dict | None:
     return None
 
 
-async def run(topic: str = "ai", days: int = 7, max_repos: int = 20) -> list[dict]:
+async def run(
+    topic: str = "ai", days: int = 7, max_repos: int = 20,
+    focus_areas: list[str] | None = None,
+    user_languages: list[str] | None = None,
+) -> list[dict]:
     """Main entry point — returns list of repo dicts with issues."""
     async with httpx.AsyncClient(timeout=30.0) as client:
         if not GITHUB_TOKEN:
             print("Warning: GITHUB_TOKEN not set. Rate limits will be very low.", file=sys.stderr)
 
         # Strategy 1: Search trending repos, then find issues in them
-        repos = await search_repos(client, topic, days)
+        repos = await search_repos(client, topic, days, focus_areas=focus_areas)
         repos = repos[:max_repos]
 
         tasks = [fetch_issues(client, r["full_name"]) for r in repos]
@@ -308,7 +327,7 @@ async def run(topic: str = "ai", days: int = 7, max_repos: int = 20) -> list[dic
 
         # Strategy 2: Search globally for AI/ML good-first-issues
         print("  Searching global issues...", file=sys.stderr)
-        global_issues = await global_issue_search(client, days=max(days * 4, 30))
+        global_issues = await global_issue_search(client, days=max(days * 4, 30), user_languages=user_languages)
 
         # Group by repo and enrich repos we haven't seen yet
         repo_issues_map: dict[str, list] = {}
