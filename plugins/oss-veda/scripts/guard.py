@@ -435,12 +435,36 @@ def check_run_history_sane() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Post-mortem checks (12-14)
+# Profile check (12)
+# ---------------------------------------------------------------------------
+
+def check_profile_exists() -> dict:
+    """Check 12 — user profile file exists (soft warning)."""
+    result = make_check("12", "User profile", "soft")
+    profile_path = CACHE_DIR / "user-profile.json"
+    if profile_path.exists():
+        try:
+            data = json.loads(profile_path.read_text(encoding="utf-8"))
+            focus = ", ".join(data.get("focus_areas", [])[:3])
+            result["details"] = f"Profile found (focus: {focus})" if focus else "Profile found"
+        except (json.JSONDecodeError, OSError):
+            result["status"] = "warn"
+            result["details"] = "Profile file exists but is corrupted"
+            result["fix_hint"] = "Delete the profile and re-run /veda to redo the interview"
+    else:
+        result["status"] = "warn"
+        result["details"] = "No user profile found"
+        result["fix_hint"] = "Profile interview will run automatically on next /veda execution"
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Post-mortem checks (13-15)
 # ---------------------------------------------------------------------------
 
 def check_scouts_succeeded(raw_data: dict) -> dict:
-    """Check 12 — enough scouts succeeded."""
-    result = make_check("12", "Scouts succeeded", "soft")
+    """Check 13 — enough scouts succeeded."""
+    result = make_check("13", "Scouts succeeded", "soft")
     meta = raw_data.get("_metadata", {})
     n_ok = meta.get("scouts_succeeded", None)
 
@@ -470,8 +494,8 @@ def check_scouts_succeeded(raw_data: dict) -> dict:
 
 
 def check_report_exists(report_path: Path) -> dict:
-    """Check 13 — report file exists and is > 100 bytes."""
-    result = make_check("13", "Report file exists", "hard")
+    """Check 14 — report file exists and is > 100 bytes."""
+    result = make_check("14", "Report file exists", "hard")
     if not report_path.exists():
         result["status"] = "fail"
         result["details"] = f"Report not found at {report_path}."
@@ -489,8 +513,8 @@ def check_report_exists(report_path: Path) -> dict:
 
 
 def check_no_tokens_in_report(report_path: Path) -> dict:
-    """Check 14 — no credential patterns leaked into the report."""
-    result = make_check("14", "No tokens in report", "hard")
+    """Check 15 — no credential patterns leaked into the report."""
+    result = make_check("15", "No tokens in report", "hard")
 
     DANGEROUS_PATTERNS = [
         r"ghp_[A-Za-z0-9_]{36}",       # classic GitHub PAT
@@ -535,7 +559,7 @@ def check_no_tokens_in_report(report_path: Path) -> dict:
 # ---------------------------------------------------------------------------
 
 def run_preflight() -> dict:
-    """Run all 11 pre-flight + security checks and return a result dict."""
+    """Run all 12 pre-flight + security checks and return a result dict."""
     t0 = time.monotonic()
 
     checks = [
@@ -550,6 +574,7 @@ def run_preflight() -> dict:
         check_no_unexpected_files(),
         check_script_checksums(),
         check_run_history_sane(),
+        check_profile_exists(),
     ]
 
     n_pass = sum(1 for c in checks if c["status"] == "pass")
