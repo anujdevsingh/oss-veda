@@ -9,7 +9,6 @@ import argparse
 import json
 import sys
 import tempfile
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -135,7 +134,7 @@ def mode_save(data_str: str | None) -> None:
     incoming.setdefault("version", 1)
 
     _ensure_cache_dir()
-    PROFILE_PATH.write_text(json.dumps(incoming, indent=2), encoding="utf-8")
+    PROFILE_PATH.write_text(json.dumps(incoming, indent=2) + "\n", encoding="utf-8")
 
     json.dump({"saved": True, "path": str(PROFILE_PATH)}, sys.stdout)
     sys.stdout.write("\n")
@@ -158,7 +157,7 @@ def mode_merge(data_str: str | None) -> None:
     if not data_str:
         # No overrides — copy saved profile directly to session file
         _ensure_cache_dir()
-        SESSION_PATH.write_text(json.dumps(saved, indent=2), encoding="utf-8")
+        SESSION_PATH.write_text(json.dumps(saved, indent=2) + "\n", encoding="utf-8")
         json.dump({"merged": True, "path": str(SESSION_PATH)}, sys.stdout)
         sys.stdout.write("\n")
         return
@@ -179,7 +178,7 @@ def mode_merge(data_str: str | None) -> None:
             merged[key] = value
 
     _ensure_cache_dir()
-    SESSION_PATH.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+    SESSION_PATH.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
 
     json.dump({"merged": True, "path": str(SESSION_PATH)}, sys.stdout)
     sys.stdout.write("\n")
