@@ -2,7 +2,7 @@
 
 **Wisdom for your next open source contribution.**
 
-A Claude Code plugin that scouts trending AI/ML repositories across 5 data sources in parallel, then ranks contribution opportunities by career impact -- combining repo momentum, issue quality, and your personal skill fit. A guard agent verifies your environment and secures the pipeline end-to-end.
+A Claude Code plugin that scouts trending open source repositories across 5 data sources in parallel, then ranks contribution opportunities by career impact -- combining repo momentum, issue quality, and your personal skill fit. On first run, a profiler agent interviews you to personalize searches and scoring to your skills. A guard agent verifies your environment and secures the pipeline end-to-end.
 
 ---
 
@@ -66,6 +66,9 @@ This triggers the `veda-write` skill to draft the PR.
 ```
                          /veda
                            |
+                   profile_manager.py
+                    (profile check)
+                           |
                        guard.py
                      (pre-flight)
                            |
@@ -96,9 +99,11 @@ This triggers the `veda-write` skill to draft the PR.
 
 ### Pipeline steps
 
+-1. **Profile check** -- Checks for a saved user profile. First-time users get a 5-question interview (languages, frameworks, experience, contribution preferences, focus areas). Returning users see a one-line summary and can override their focus for this run.
+
 0. **Guard pre-flight** -- Verifies environment health: uv installed, Python >= 3.11, network reachable, GITHUB_TOKEN set, script checksums intact, config valid. Hard failures block the pipeline; soft warnings continue.
 
-1. **Scout** (parallel) -- 5 async scouts fetch trending repos, posts, models, and papers from GitHub, Hacker News, Reddit, HuggingFace, and Papers with Code simultaneously using `asyncio.gather()`.
+1. **Scout** (parallel) -- 5 async scouts fetch trending repos, posts, models, and papers from GitHub, Hacker News, Reddit, HuggingFace, and Papers with Code simultaneously using `asyncio.gather()`. Search queries adapt to the user's profile (focus areas, languages).
 
 2. **Rank** -- Each repo+issue pair is scored on 3 axes (repo momentum, issue quality, skill fit) producing a composite career impact score out of 100.
 
@@ -107,6 +112,8 @@ This triggers the `veda-write` skill to draft the PR.
 4. **Strategy** -- Claude adds a personalized "This Week's Strategic Pick" based on your skill profile and current AI hiring trends.
 
 5. **Guard post-mortem** -- Checks scout success rates, verifies report was generated, scans output for leaked tokens. Appends diagnosis if any scouts failed.
+
+6. **Cleanup** -- Removes the temporary session profile override. The saved user profile persists for future runs.
 
 ---
 
@@ -143,6 +150,31 @@ If the guard itself crashes, the pipeline runs anyway. The guard never blocks a 
 
 ---
 
+## User Profiler
+
+On first run, oss-veda interviews you to build a personalized skill profile. This takes about 30 seconds and only happens once.
+
+### What the profiler asks
+
+1. **Languages** -- What programming languages do you use and how comfortable are you with each?
+2. **Frameworks/tools** -- What frameworks, libraries, or tools are you familiar with?
+3. **Experience level** -- Student, early career, mid-level, or senior?
+4. **Contribution preferences** -- Bug fixes, docs, new features, examples, or tests?
+5. **Focus areas** -- What areas of technology interest you most right now?
+
+### How it personalizes results
+
+- **Search queries** -- GitHub, HN, and PwC scouts search for topics matching your focus areas instead of hardcoded AI/ML topics
+- **Language filtering** -- GitHub global issue search targets your languages instead of hardcoded Python/TypeScript
+- **Fit scoring** -- The ranking engine scores repos against your actual languages, frameworks, and experience level
+- **Per-run overrides** -- Each run asks "Same focus today, or different?" so you can explore outside your usual areas without re-doing the interview
+
+### Profile storage
+
+Your profile is saved to the system temp directory (`{tempdir}/oss-veda-cache/user-profile.json`). It survives plugin updates. If it's ever lost, the interview runs again automatically.
+
+---
+
 ## Architecture
 
 ```
@@ -167,6 +199,7 @@ oss-veda/
 |   |-- hf-scout.md                   # HuggingFace trending models/spaces
 |   |-- pwc-scout.md                  # Papers with Code linked repos
 |   |-- veda-guard.md                 # Guard agent (pre-flight + post-mortem)
+|   |-- veda-profiler.md              # Profiler agent (5-question interview)
 |-- commands/
 |   |-- veda.md                        # /veda slash command
 |   |-- veda-deep.md                   # /veda-deep slash command
@@ -190,7 +223,7 @@ oss-veda/
 
 - **uv single-file scripts** -- Each Python script uses PEP 723 inline metadata (`# /// script`). Dependencies are declared per-file and auto-installed by `uv` on first run. No global `requirements.txt`, no shared virtual environment.
 
-- **Native Claude subagents** -- 6 agents (5 scouts + 1 guard) are markdown files in `agents/`. Scout agents can be invoked independently by Claude for targeted searches beyond the standard pipeline.
+- **Native Claude subagents** -- 7 agents (5 scouts + 1 guard + 1 profiler) are markdown files in `agents/`. Scout agents can be invoked independently by Claude for targeted searches beyond the standard pipeline.
 
 - **Guard agent with checksum verification** -- `guard.py` runs 14 checks across pre-flight, security, and post-mortem phases. Script integrity is verified via SHA256 checksums (with CRLF normalization for cross-platform consistency). Tiered severity (hard fail / soft warning / pass) ensures the pipeline only blocks on real problems.
 
@@ -438,7 +471,15 @@ Use this to track scout reliability and result trends over time.
 
 ## Version History
 
-### v1.2.0 (Current)
+### v1.3.0 (Current)
+
+- **User profiler agent** -- 5-question interview on first run builds a personalized skill profile
+- **Per-run focus override** -- Quick-check each run lets you temporarily shift focus without re-interviewing
+- **Dynamic search queries** -- Scouts adapt to your focus areas and languages
+- **Profile-aware scoring** -- Fit scoring uses your actual skills and experience level
+- Guard check 12 (profile_exists), post-mortem checks renumbered to 13-15
+
+### v1.2.0
 
 - **Guard agent** -- New `guard.py` with 14 environment, security, and post-mortem checks. Runs automatically at pipeline start (pre-flight) and end (post-mortem). Tiered severity: hard fail blocks, soft warning continues, pass is silent.
 - **Script integrity verification** -- SHA256 checksums for all scripts (`checksums.json`). Guard detects tampered or corrupted scripts before execution. CRLF-normalized hashing for cross-platform consistency.

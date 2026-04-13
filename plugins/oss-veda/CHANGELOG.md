@@ -2,6 +2,26 @@
 
 All notable changes to oss-veda are documented in this file.
 
+## [1.3.0] - 2026-04-13
+
+### Added
+- **User profiler agent** -- 5-question interview builds a personalized skill profile on first run
+- **Per-run focus override** -- "Same focus today, or different?" quick-check on every run
+- **Dynamic search queries** -- GitHub, HN, and PwC scouts adapt to the user's focus areas and languages
+- **Profile-aware scoring** -- fit scoring uses the user's actual languages, frameworks, and experience level
+- **profile_manager.py** -- profile CRUD script (check, save, merge, cleanup modes)
+- **Guard check 12** -- soft warning when no user profile exists
+
+### Changed
+- `run_scouts.py` accepts `--profile` flag to pass user profile to scouts
+- `rank_opportunities.py` accepts `--profile` flag, uses experience level for base skill score
+- `github_scout.py` uses dynamic languages and topics from profile
+- `hn_scout.py` accepts extra queries from focus areas
+- `pwc_scout.py` uses focus areas for search queries
+- SKILL.md adds Step -1 (profile check) and Step 6 (cleanup)
+- veda-deep.md adds profile check and cleanup steps
+- Guard post-mortem checks renumbered to 13-15
+
 ## [1.2.0] - 2026-04-12
 
 ### Added
