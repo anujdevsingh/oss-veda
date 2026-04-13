@@ -33,6 +33,18 @@ CACHE_TTL = 6 * 3600  # 6 hours
 SCOUT_TIMEOUT = 180  # 3 minutes max per scout
 
 
+def load_profile(path: str | None) -> dict | None:
+    """Load a user profile JSON file. Returns dict or None on error."""
+    if not path:
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"Warning: could not load profile '{path}': {e}", file=sys.stderr)
+        return None
+
+
 def get_cache_path(topic: str, days: int) -> Path:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     # Sanitize topic to prevent path traversal
@@ -58,17 +70,36 @@ async def _run_with_timeout(coro, name: str, timeout: int = SCOUT_TIMEOUT):
         raise
 
 
-async def run_all(topic: str, days: int, max_repos: int) -> dict:
+async def run_all(topic: str, days: int, max_repos: int, profile: dict | None = None) -> dict:
     """Run all 5 scouts in parallel with per-scout timeouts."""
     print("Launching 5 parallel scouts...", file=sys.stderr)
     start = datetime.now(timezone.utc)
 
+    # Extract profile fields for scouts that support them
+    focus_areas: list[str] | None = None
+    user_languages: list[str] | None = None
+    hn_extra_queries: list[str] | None = None
+
+    if profile:
+        focus_areas = profile.get("focus_areas") or None
+        # user_languages: list of language names (lowercase)
+        raw_langs = profile.get("languages")
+        if raw_langs:
+            if isinstance(raw_langs, dict):
+                user_languages = list(raw_langs.keys())
+            elif isinstance(raw_langs, list):
+                user_languages = raw_langs
+
+        # Build HN query from focus_areas (first 5, joined with OR)
+        if focus_areas:
+            hn_extra_queries = focus_areas[:5]
+
     results = await asyncio.gather(
-        _run_with_timeout(github_scout.run(topic, days, max_repos), "github"),
-        _run_with_timeout(hn_scout.run(f"{topic} OR LLM OR machine learning"), "hackernews"),
+        _run_with_timeout(github_scout.run(topic, days, max_repos, focus_areas=focus_areas, user_languages=user_languages), "github"),
+        _run_with_timeout(hn_scout.run(f"{topic} OR LLM OR machine learning", extra_queries=hn_extra_queries), "hackernews"),
         _run_with_timeout(reddit_scout.run(), "reddit"),
         _run_with_timeout(hf_scout.run(), "huggingface"),
-        _run_with_timeout(pwc_scout.run(), "papers_with_code"),
+        _run_with_timeout(pwc_scout.run(focus_areas=focus_areas), "papers_with_code"),
         return_exceptions=True,
     )
 
@@ -107,6 +138,7 @@ def main():
     parser.add_argument("--max-repos", type=int, default=20, help="Max repos from GitHub (default: 20)")
     parser.add_argument("--output", default=default_output, help="Output file path")
     parser.add_argument("--no-cache", action="store_true", help="Bypass cache")
+    parser.add_argument("--profile", default=None, help="Path to user profile JSON")
     args = parser.parse_args()
 
     # Check cache
@@ -125,7 +157,8 @@ def main():
         else:
             return
 
-    results = asyncio.run(run_all(args.topic, args.days, args.max_repos))
+    profile = load_profile(args.profile)
+    results = asyncio.run(run_all(args.topic, args.days, args.max_repos, profile=profile))
 
     # Write output
     with open(args.output, "w", encoding="utf-8") as f:
