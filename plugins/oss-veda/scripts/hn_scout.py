@@ -24,10 +24,13 @@ def extract_github_url(text: str) -> str | None:
     return match.group(0).rstrip(".") if match else None
 
 
-async def run(query: str = "AI OR LLM") -> list[dict]:
+async def run(query: str = "AI OR LLM", extra_queries: list[str] | None = None) -> list[dict]:
     """Search HN for Show HN posts about AI/ML projects."""
     results = []
-    queries = [query, "open source AI", "machine learning tool"]
+    if extra_queries is not None:
+        queries = [query] + extra_queries
+    else:
+        queries = [query, "open source AI", "machine learning tool"]
 
     async with httpx.AsyncClient(timeout=20.0) as client:
         for q in queries:
