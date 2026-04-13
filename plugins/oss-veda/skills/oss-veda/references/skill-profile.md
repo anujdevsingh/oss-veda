@@ -1,7 +1,11 @@
 # User Skill Profile
 
-This file defines the user's technical skills for fit scoring.
-Edit this file to customize oss-veda for a different user.
+> **Note:** This file contains the default fallback profile. If the user has
+> completed the oss-veda profile interview, their personal profile
+> (stored in the system cache directory) takes precedence over these defaults.
+> This file is only used when no user profile exists and the interview is skipped.
+
+This file defines the default technical skills for fit scoring.
 
 ## Languages (0.0 - 1.0 proficiency)
 

@@ -1,6 +1,6 @@
 ---
 description: Run a thorough deep analysis of AI/ML open source opportunities with expanded sources and longer lookback
-argument-hint: "[topic]"
+argument-hint: "[topic] [--skip-guard]"
 ---
 
 Run an expanded oss-veda scan with:
@@ -14,6 +14,18 @@ Topic: $ARGUMENTS (default: ai)
 **You MUST execute these commands yourself with the Bash tool. Do NOT
 ask the user to run them. Run all steps in sequence and then
 summarize the report.**
+
+Step -1 — Profile check. Run with the Bash tool:
+
+```bash
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/profile_manager.py --mode check
+```
+
+Parse the JSON. If `"exists"` is `false`: invoke the `veda-profiler`
+agent for the 5-question interview. If `"exists"` is `true`: show a
+one-line summary and ask "Same focus today, or different?" If same,
+run `profile_manager.py --mode merge`. If different, run
+`profile_manager.py --mode merge --data '<overrides>'`.
 
 Step 0 — Guard pre-flight. Run with the Bash tool:
 
@@ -30,16 +42,20 @@ Step 1 — execute with the Bash tool now:
 
 ```bash
 TOPIC="${ARGUMENTS:-ai}"
+SESSION_PROFILE="$(python3 -c "import tempfile; print(tempfile.gettempdir())")/oss-veda-cache/user-profile-session.json"
 uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/run_scouts.py \
     --topic "$TOPIC" \
     --days 14 \
-    --max-repos 30
+    --max-repos 30 \
+    --profile "$SESSION_PROFILE"
 ```
 
 Step 2 — after Step 1 completes, execute with the Bash tool:
 
 ```bash
-uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/rank_opportunities.py
+SESSION_PROFILE="$(python3 -c "import tempfile; print(tempfile.gettempdir())")/oss-veda-cache/user-profile-session.json"
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/rank_opportunities.py \
+    --profile "$SESSION_PROFILE"
 ```
 
 Step 3 — after Step 2 completes, execute with the Bash tool:
@@ -58,3 +74,9 @@ uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/guard.py --mode postmortem
 
 If any scouts failed, append a post-mortem diagnosis to the report.
 If all succeeded, say nothing.
+
+Step 5 — Cleanup. Run with the Bash tool:
+
+```bash
+uv run --script ${CLAUDE_PLUGIN_ROOT}/scripts/profile_manager.py --mode cleanup
+```
