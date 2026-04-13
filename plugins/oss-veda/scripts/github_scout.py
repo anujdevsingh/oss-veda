@@ -32,12 +32,12 @@ if GITHUB_TOKEN:
 SEARCH_DELAY = 2.2  # seconds between search API calls (30/min limit)
 CACHE_DIR = Path(tempfile.gettempdir()) / "oss-veda-cache"
 CACHE_TTL = 6 * 3600
+MAX_SUBTOPICS = 5  # cap subtopics to stay within rate limits
 
-# Top 12 highest-signal AI/ML topics (trimmed from 30 to avoid rate limits)
+# Top AI/ML topics ordered by signal value
 AI_ML_TOPICS = [
-    "llm", "langchain", "langgraph", "rag",
-    "agents", "ai-agents", "pytorch", "transformers",
-    "huggingface", "fine-tuning", "vllm", "mlops",
+    "llm", "langchain", "rag", "ai-agents", "pytorch",
+    "transformers", "huggingface", "fine-tuning", "vllm", "mlops",
 ]
 
 
@@ -112,10 +112,10 @@ async def search_repos(
     since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
     results = []
 
-    # Build query list: user topic + focused subtopics (profile-aware)
+    # Build query list: user topic + focused subtopics (profile-aware, capped)
     subtopics = focus_areas if focus_areas is not None else AI_ML_TOPICS
     queries = [topic]
-    for subtopic in subtopics:
+    for subtopic in subtopics[:MAX_SUBTOPICS]:
         if subtopic != topic:
             queries.append(subtopic)
 
@@ -227,8 +227,8 @@ async def global_issue_search(
     seen_urls = set()
 
     if user_languages is not None:
-        # Build language-specific queries from user's languages (cap at 4)
-        langs = user_languages[:4]
+        # Build language-specific queries from user's languages (cap at 3)
+        langs = user_languages[:3]
         queries = [
             f'label:"good first issue" language:{lang} topic:ai state:open created:>{since}'
             for lang in langs
@@ -236,7 +236,6 @@ async def global_issue_search(
     else:
         queries = [
             f'label:"good first issue" language:python topic:llm state:open created:>{since}',
-            f'label:"good first issue" language:python topic:machine-learning state:open created:>{since}',
             f'label:"help wanted" language:python topic:ai state:open created:>{since}',
             f'label:"good first issue" language:typescript topic:ai state:open created:>{since}',
         ]
@@ -286,7 +285,7 @@ async def enrich_repo(client: httpx.AsyncClient, api_url: str) -> dict | None:
 
 
 async def run(
-    topic: str = "ai", days: int = 7, max_repos: int = 20,
+    topic: str = "ai", days: int = 7, max_repos: int = 10,
     focus_areas: list[str] | None = None,
     user_languages: list[str] | None = None,
 ) -> list[dict]:
@@ -299,14 +298,14 @@ async def run(
         repos = await search_repos(client, topic, days, focus_areas=focus_areas)
         repos = repos[:max_repos]
 
-        tasks = [fetch_issues(client, r["full_name"]) for r in repos]
-        all_issues = await asyncio.gather(*tasks, return_exceptions=True)
-
+        # Fetch issues sequentially to respect rate limits (each call uses Search API)
         results = []
         seen_repos = set()
-        for repo, issues in zip(repos, all_issues):
-            if isinstance(issues, Exception):
-                print(f"  Warning: issue fetch failed for {repo['full_name']}: {type(issues).__name__}", file=sys.stderr)
+        for repo in repos:
+            try:
+                issues = await fetch_issues(client, repo["full_name"])
+            except Exception as e:
+                print(f"  Warning: issue fetch failed for {repo['full_name']}: {type(e).__name__}", file=sys.stderr)
                 issues = []
             seen_repos.add(repo["full_name"])
             results.append(
@@ -339,12 +338,16 @@ async def run(
             repo_issues_map.setdefault(fn, []).append(gi["issue"])
             repo_api_urls[fn] = gi["repo_api_url"]
 
-        # Fetch repo details for new repos
-        enrich_tasks = [enrich_repo(client, url) for url in repo_api_urls.values()]
-        enriched = await asyncio.gather(*enrich_tasks, return_exceptions=True)
+        # Fetch repo details sequentially to respect rate limits
+        enriched = {}
+        for fn, api_url in repo_api_urls.items():
+            try:
+                enriched[fn] = await enrich_repo(client, api_url)
+            except Exception:
+                enriched[fn] = None
 
-        for (fn, api_url), repo_data in zip(repo_api_urls.items(), enriched):
-            if isinstance(repo_data, Exception) or repo_data is None:
+        for fn, repo_data in enriched.items():
+            if repo_data is None:
                 continue
             issues = repo_issues_map.get(fn, [])
             results.append(
@@ -370,7 +373,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="GitHub Scout for oss-veda")
     parser.add_argument("--topic", default="ai")
     parser.add_argument("--days", type=int, default=7)
-    parser.add_argument("--max-repos", type=int, default=20)
+    parser.add_argument("--max-repos", type=int, default=10)
     args = parser.parse_args()
 
     results = asyncio.run(run(args.topic, args.days, args.max_repos))
