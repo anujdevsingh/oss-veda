@@ -16,10 +16,11 @@ import httpx
 PWC_API = "https://paperswithcode.com/api/v1"
 
 
-async def run() -> list[dict]:
+async def run(focus_areas: list[str] | None = None) -> list[dict]:
     results = []
+    queries = focus_areas[:3] if focus_areas is not None else ["large language model", "AI agents", "fine-tuning"]
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-        for query in ["large language model", "AI agents", "fine-tuning"]:
+        for query in queries:
             try:
                 resp = await client.get(
                     f"{PWC_API}/search/",
