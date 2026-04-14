@@ -129,7 +129,7 @@ Every `/veda` and `/veda-deep` run starts with an automatic guard check (~3 seco
 | Category | Checks | Severity |
 |----------|--------|----------|
 | **Pre-flight** | uv installed, Python >= 3.11, temp dir writable, network reachable, GITHUB_TOKEN set, scripts exist, config.json valid | Hard/Soft |
-| **Security** | Cache dir < 100 MB, no unexpected files, script SHA256 checksums match, history file integrity | Hard/Soft |
+| **Security** | Cache dir < 100 MB, no unexpected files, script SHA256 checksums match, history file integrity, user profile exists | Hard/Soft |
 | **Post-mortem** | Scout success rate, report file generated, no leaked tokens in output | Hard/Soft |
 
 ### Severity levels
@@ -216,6 +216,7 @@ oss-veda/
 |   |-- rank_opportunities.py          # Career impact scoring engine
 |   |-- generate_report.py             # Markdown report generator
 |   |-- guard.py                       # Environment & security guard
+|   |-- profile_manager.py             # Profile CRUD (check/save/merge/cleanup)
 |   |-- _dev_update_checksums.py       # Dev-only: regenerate checksums.json
 |-- config.json                        # Centralized configuration
 |-- checksums.json                     # SHA256 hashes for script integrity
@@ -228,9 +229,9 @@ oss-veda/
 
 - **Native Claude subagents** -- 7 agents (5 scouts + 1 guard + 1 profiler) are markdown files in `agents/`. Scout agents can be invoked independently by Claude for targeted searches beyond the standard pipeline.
 
-- **Guard agent with checksum verification** -- `guard.py` runs 14 checks across pre-flight, security, and post-mortem phases. Script integrity is verified via SHA256 checksums (with CRLF normalization for cross-platform consistency). Tiered severity (hard fail / soft warning / pass) ensures the pipeline only blocks on real problems.
+- **Guard agent with checksum verification** -- `guard.py` runs 15 checks across pre-flight, security, and post-mortem phases. Script integrity is verified via SHA256 checksums (with CRLF normalization for cross-platform consistency). Tiered severity (hard fail / soft warning / pass) ensures the pipeline only blocks on real problems.
 
-- **Graceful degradation** -- If any scout fails (rate limit, network error, API down), the others continue. `asyncio.gather(return_exceptions=True)` ensures one failure never kills the pipeline.
+- **Graceful degradation** -- If any scout fails (rate limit, network error, API down), the others continue. Scout orchestration uses `asyncio.gather(return_exceptions=True)`, while GitHub API calls run sequentially with 2.2s delays to respect rate limits.
 
 - **Per-scout timeouts** -- Each scout has a 3-minute timeout via `asyncio.wait_for()`. A hung scout is killed and reported, not silently blocking.
 
@@ -451,7 +452,7 @@ You should see your token printed. Now run `/veda` in Claude Code — the rate-l
 
 ### "Rate limit exceeded" errors on GitHub scout
 
-GitHub Search API allows 30 requests/minute. If you run the pipeline twice within a minute, the second run will hit rate limits. The backoff system handles this automatically -- wait 1-2 minutes and retry.
+GitHub Search API allows 30 requests/minute with a token (10/min without). The GitHub scout serializes all API calls with 2.2-second delays and caps subtopic queries to 5 to stay within limits. If you still see rate-limit messages (e.g. running the pipeline twice in quick succession), the backoff system retries automatically -- wait 1-2 minutes and retry.
 
 ### "GITHUB_TOKEN not set" warning
 
@@ -501,11 +502,12 @@ Use this to track scout reliability and result trends over time.
 - **Per-run focus override** -- Quick-check each run lets you temporarily shift focus without re-interviewing
 - **Dynamic search queries** -- Scouts adapt to your focus areas and languages
 - **Profile-aware scoring** -- Fit scoring uses your actual skills and experience level
+- **Rate limit fix** -- GitHub scout now serializes all API calls (was firing 40-80 concurrent requests). Subtopics capped to 5, max repos reduced to 10.
 - Guard check 12 (profile_exists), post-mortem checks renumbered to 13-15
 
 ### v1.2.0
 
-- **Guard agent** -- New `guard.py` with 14 environment, security, and post-mortem checks. Runs automatically at pipeline start (pre-flight) and end (post-mortem). Tiered severity: hard fail blocks, soft warning continues, pass is silent.
+- **Guard agent** -- New `guard.py` with environment, security, and post-mortem checks (14 in v1.2.0, 15 in v1.3.0). Runs automatically at pipeline start (pre-flight) and end (post-mortem). Tiered severity: hard fail blocks, soft warning continues, pass is silent.
 - **Script integrity verification** -- SHA256 checksums for all scripts (`checksums.json`). Guard detects tampered or corrupted scripts before execution. CRLF-normalized hashing for cross-platform consistency.
 - **`--skip-guard` escape hatch** -- Bypass guard checks for edge cases (e.g. corporate proxies blocking network check).
 - **Dev helper** -- `_dev_update_checksums.py` regenerates checksums after editing scripts.
